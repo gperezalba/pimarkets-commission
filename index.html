@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <link rel="shortcut icon" type="image/png" href="/icon.png"/>
+    <title>Comisiones PiMarkets</title>
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.0.0-beta.36/dist/web3.min.js"></script>
+    <script src="app.js"></script>
+  </head>
+  <body>
+	<h1>Comisiones PiMarkets</h1>
+    <br>
+    <button onclick="App.updateInfo();">Actualizar Info</button>
+    <br>
+    <br>
+    <div id="info"></div>    
+    <br>
+	<h2>Reparto de comisiones</h2>
+    <h3>(Es probable que haya que realizar esta acción varias veces)</h3>
+    <button onclick="App.pay();">Repartir</button>
+	  <br>
+  </body>
+</html>
