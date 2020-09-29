@@ -2,22 +2,202 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
-    <link rel="shortcut icon" type="image/png" href="/icon.png"/>
-    <title>Comisiones PiMarkets</title>
-    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.0.0-beta.36/dist/web3.min.js"></script>
-    <script src="app.js"></script>
+    <title>PiMarkets comisiones</title>
+    <script charset="utf-8"
+        src="https://cdn.ethers.io/scripts/ethers-v4.min.js"
+        type="text/javascript">
+    </script>
+    <script type="text/javascript">
+        const contractABI = [{"constant":true,"inputs":[],"name":"getUsers","outputs":[{"name":"","type":"address[]"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"pay","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_users","type":"address[]"}],"name":"setNewUsersArray","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"index","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"uint256"}],"name":"users","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"withdrawl","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_user","type":"address"}],"name":"setNewUser","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"isUser","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"counter","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"getUserCounter","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"amount","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_user","type":"address"}],"name":"isAllowed","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"toggleIsPaying","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"isPaying","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"controller","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"inputs":[{"name":"_controller","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"payable":true,"stateMutability":"payable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":false,"name":"to","type":"address"},{"indexed":false,"name":"amount","type":"uint256"},{"indexed":false,"name":"index","type":"uint256"}],"name":"Pay","type":"event"}];
+        const contractADDRESS = "0x51a5231C726a6A7908F7F43904EF6837688211Bc";
+        const registryADDRESS = "0x46aCE7D360b15e54d67278fd5C86B284867193E6";
+        const URL = "https://connect.pichain.io";
+        //const URL = "http://52.28.106.166:23001";
+		    const PATH_0 = "m/44'/60'/0'/0/7";
+        //0xEaBbCA6F6CFa07F246Fd7E9549375F32E559F586
+        const MNEMONIC = "stock engine maximum news mercy wool town moment effort bright clean curious"
+        let isPaying = false;
+
+        async function updateInfo() {
+			document.getElementById("info").innerHTML = "Cargando...";
+			document.getElementById("paymentInfo").innerHTML = "Cargando..."
+			let contract = getContractCaller(contractADDRESS, contractABI);
+			let _isPaying = await contract.isPaying();
+			let _amount = await contract.amount();
+			let _index = await contract.index();
+			let _users = await contract.getUserCounter();
+			let _events = await getRegistryEvents();
+
+			document.getElementById("info").innerHTML = "Usuarios verificados: " + 
+			_users + 
+			" <br>  Comisiones a repartir: " + 
+			parseInt(_amount)/1e18 + " Pi" +
+			" <br>  Eventos notificados: " + 
+			_users + " de " + _events;
+
+			if (_isPaying) {
+				document.getElementById("paymentInfo").innerHTML = "Pagados " + 
+					_index + 
+					" de " + 
+					_users;
+			} else {
+				document.getElementById("paymentInfo").innerHTML = "No hay pago pendiente"+
+				" <br> Transferir PI a: 0x51a5231C726a6A7908F7F43904EF6837688211Bc ";
+			}
+        }
+
+        async function pay() {
+            document.getElementById("response").innerHTML = "Espere...";
+            let contract = getContractCaller(contractADDRESS, contractABI);
+            let _isPaying = await contract.isPaying();
+
+            if (_isPaying) {
+                if (!isPaying) {
+                    isPaying = true;
+
+                    try {
+                        let wallet = await createWalletFromMnemonic(MNEMONIC, PATH_0);
+                        let contract = getContractSigner(contractADDRESS, contractABI, wallet);
+                        let response = await contract.pay({gasPrice: 0, gasLimit: 6283184});
+                        let receipt = await response.wait();
+                        document.getElementById("response").innerHTML = "TRANSACCIÓN EXITOSA";
+                        await updateInfo();
+                    } catch (error) {
+                        document.getElementById("response").innerHTML = error.message;
+                        console.error(error);
+                    }
+
+                    isPaying = false;
+                }
+            } else {
+                alert("No hay pago pendiente");
+                document.getElementById("response").innerHTML = "";
+            }
+        }
+
+        async function getRegistryEvents() {
+            let topic = ethers.utils.id("NewIdentityDD(address,bytes32)");
+
+            let filter = {
+                address: registryADDRESS,
+                fromBlock: 0,
+                toBlock: "latest",
+                topics: [ topic ]
+            }
+
+            let provider = getProvider();
+
+            let result = await provider.getLogs(filter);
+
+            return result.length;
+        }
+
+        function getContractSigner(address, abi, wallet) {
+            wallet = wallet.connect(getProvider());
+            return getContractCaller(address, abi).connect(wallet);
+        }
+
+        function getContractCaller(address, abi) {
+            return new ethers.Contract(address, abi, getProvider());
+        }
+
+        function getProvider() {
+            return new ethers.providers.JsonRpcProvider(URL);
+        }
+
+		function createWalletFromMnemonic(mnemonic, path) {
+			return ethers.Wallet.fromMnemonic(mnemonic, path);
+		}
+
+		function isValidMnemonic(mnemonic) {
+			return ethers.utils.HDNode.isValidMnemonic(mnemonic);
+		}
+
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
   </head>
   <body>
-	<h1>Comisiones PiMarkets</h1>
-    <br>
-    <button onclick="App.updateInfo();">Actualizar Info</button>
-    <br>
-    <br>
-    <div id="info"></div>    
-    <br>
-	<h2>Reparto de comisiones</h2>
-    <h3>(Es probable que haya que realizar esta acción varias veces)</h3>
-    <button onclick="App.pay();">Repartir</button>
-	  <br>
+    <style type='text/css'>
+        body {
+            font-family: 'Open Sans', sans-serif;
+            font-weight: 400;
+            background-color: #004381
+        }
+        
+        h1 {
+            color: white;
+        }
+
+        h2 {
+            color: white;
+        }
+
+        h3 {
+            color: white;
+        }
+
+        h4 {
+            color: white;
+        }
+
+        .myButton {
+            box-shadow: 0px 1px 0px 0px #fff6af;
+            background:linear-gradient(to bottom, #ffec64 5%, #ffab23 100%);
+            background-color:#ffec64;
+            border-radius:6px;
+            border:1px solid #ffaa22;
+            display:inline-block;
+            cursor:pointer;
+            color:#333333;
+            font-family:Arial;
+            font-size:15px;
+            font-weight:bold;
+            padding:6px 24px;
+            text-decoration:none;
+            text-shadow:0px 1px 0px #ffee66;
+        }
+        .myButton:hover {
+            background:linear-gradient(to bottom, #ffab23 5%, #ffec64 100%);
+            background-color:#ffab23;
+        }
+        .myButton:active {
+            position:relative;
+            top:1px;
+        }
+
+        .redondeadonorelieve {
+            border-radius: 5px;
+            border: 1px solid #39c;
+            text-align: center;
+            line-height: 30px;
+        }
+
+        .center {
+            margin: auto;
+            padding: 10px;
+            text-align: center;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+    <div class="center">
+        <h1>Pi Markets</h1>
+        <h3> -- Reparto comisiones --</h3>
+        <br>
+        <button class="myButton" onclick="updateInfo();">Actualizar</button>
+        <br>
+        <br>
+        <div style="color: white;" id="info">(info)</div>
+        <br>
+        <br>
+        <button class="myButton" onclick="pay();">Pagar</button>
+        <br>
+        <br>
+        <div style="color: white;" id="response"></div>
+        <br>
+        <div style="color: white;" id="paymentInfo">(payment info)</div>
+        
+        
+    </div>
   </body>
 </html>
